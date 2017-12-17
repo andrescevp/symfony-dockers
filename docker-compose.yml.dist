@@ -4,12 +4,12 @@ services:
     image: mysql:5.7
     container_name: sfn_app_mysql_57
     ports:
-      - "3310:3306"
+      - "3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=root
-#    volumes:
-#    - ./docker/mysql:/docker-entrypoint-initdb.d
-#    - ../weednator_sfn/db_docker_persist:/var/lib/mysql
+    volumes:
+    - ./docker/mysql:/docker-entrypoint-initdb.d
+    - ./db:/var/lib/mysql
     networks:
       symfony_docker_stack:
         ipv4_address: 172.30.0.2
@@ -20,26 +20,27 @@ services:
     depends_on:
         - php
     ports:
-        - "8001:80"
-        - "8443:443"
+        - "80:80"
+        - "449:443"
     volumes:
-        - /path/to/your/code:/code
-        - ./vhost.conf:/etc/nginx/conf.d/default.conf
         - ./logs:/logs
+        - ./docker/nginx/conf.d/vhost.conf:/etc/nginx/conf.d/default.conf
+        - /sfn_project:/code
     networks:
       symfony_docker_stack:
         ipv4_address: 172.30.0.3
 
   php:
     build:
-      context: ./docker/phpfpm-7
+      context: ./docker/phpfpm-71
       dockerfile: Dockerfile-phpfpm
-    container_name: sfn_app_php7_fpm
+    container_name: sfn_app_php71_fpm
     depends_on:
         - mysql
         - redis
+        - memcached
     volumes:
-        - /path/to/your/code:/code
+        - /sfn_project:/code
 #    extra_hosts:
 #     - "host:x.x.x.x"
     networks:
@@ -50,10 +51,60 @@ services:
       image: redis:alpine
       container_name: sfn_app_redis
       ports:
-        - "6379"
+        - "6379:6379"
       networks:
         symfony_docker_stack:
             ipv4_address: 172.30.0.5
+
+  memcached:
+    image: memcached:latest
+    container_name: sfn_app_memcache
+    ports:
+      - "11212:11212"
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.6
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.1.0
+    container_name: sfn_app_elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./elastic_search_data:/usr/share/elasticsearch/data
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.7
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.1.0
+    container_name: sfn_app_kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.8
+
+  logstash:
+    build:
+          context: ./docker/logstash
+          dockerfile: Dockerfile-logstashGrok
+    container_name: sfn_app_logstash
+    command: -f /etc/logstash/conf.d
+    depends_on:
+      - kibana
+    volumes:
+      - ./docker/logstash/config:/etc/logstash/conf.d
+      - ./logs:/var/logs
+      - /sfn_project/var/logs:/var/app/logs
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.9
 
 networks:
   symfony_docker_stack:

@@ -1,2 +1,11 @@
 docker-compose.yml
+!db
+db/*
 !db/.gitkeep
+!elastic_search_data
+elastic_search_data/*
+!elastic_search_data/.gitkeep
+!logs/nginx/default/
+logs/nginx/default/*
+!logs/nginx/default/.gitkeep
+
