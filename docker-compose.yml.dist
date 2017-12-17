@@ -1,0 +1,64 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: sfn_app_mysql_57
+    ports:
+      - "3310:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+#    volumes:
+#    - ./docker/mysql:/docker-entrypoint-initdb.d
+#    - ../weednator_sfn/db_docker_persist:/var/lib/mysql
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.2
+
+  nginx:
+    image: nginx:latest
+    container_name: sfn_app_nginx
+    depends_on:
+        - php
+    ports:
+        - "8001:80"
+        - "8443:443"
+    volumes:
+        - /path/to/your/code:/code
+        - ./vhost.conf:/etc/nginx/conf.d/default.conf
+        - ./logs:/logs
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.3
+
+  php:
+    build:
+      context: ./docker/phpfpm-7
+      dockerfile: Dockerfile-phpfpm
+    container_name: sfn_app_php7_fpm
+    depends_on:
+        - mysql
+        - redis
+    volumes:
+        - /path/to/your/code:/code
+#    extra_hosts:
+#     - "host:x.x.x.x"
+    networks:
+      symfony_docker_stack:
+        ipv4_address: 172.30.0.4
+
+  redis:
+      image: redis:alpine
+      container_name: sfn_app_redis
+      ports:
+        - "6379"
+      networks:
+        symfony_docker_stack:
+            ipv4_address: 172.30.0.5
+
+networks:
+  symfony_docker_stack:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16

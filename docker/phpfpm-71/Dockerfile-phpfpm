@@ -1,0 +1,88 @@
+FROM php:7.1-fpm
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin \
+        --filename=composer
+
+RUN apt-get update && apt-get install -y apt-utils \
+        git \
+        zip \
+        unzip \
+        netcat \
+        colordiff \
+        gawk \
+        python \
+        python-pip \
+        python-dev \
+        build-essential \
+        wdiff \
+        libfreetype6-dev \
+        libjpeg62-turbo-dev \
+        libmcrypt-dev \
+        libpng12-dev \
+        libc6 \
+        zlib1g \
+        libxslt1.1 \
+        libtidy-0.99-0 \
+        libreadline6 \
+        libncurses5 \
+        libtinfo5 \
+        libsybdb5 \
+        libmcrypt4 \
+        libldap-2.4-2 \
+        libstdc++6 \
+        libgmp10 \
+        libpng12-0 \
+        libjpeg62-turbo \
+        libbz2-1.0 \
+        libxml2 \
+        libssl1.0.0 \
+        libcurl3 \
+        libfreetype6 \
+        libicu52 \
+        libgcc1 \
+        libgcrypt20 \
+        libgssapi-krb5-2 \
+        libgnutls-deb0-28 \
+        libsasl2-2 \
+        liblzma5 \
+        libidn11 \
+        librtmp1 \
+        libssh2-1 \
+        libkrb5-3 \
+        libk5crypto3 \
+        libcomerr2 \
+        libgpg-error0 \
+        libkrb5support0 \
+        libkeyutils1 \
+        libp11-kit0 \
+        libtasn1-6 \
+        libnettle4 \
+        libhogweed2 \
+        libffi6 \
+        libxslt-dev \
+    && docker-php-ext-install -j$(nproc) iconv opcache mcrypt pdo_mysql xsl\
+    && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
+    && docker-php-ext-install -j$(nproc) gd \
+    && git clone https://github.com/websupport-sk/pecl-memcache.git \
+	&& cd pecl-memcache \
+	&& phpize \
+	&& ./configure \
+	&& make install \
+    && docker-php-ext-enable memcache \
+    && docker-php-ext-enable opcache xsl
+
+# Add xDebug
+RUN pecl install xdebug && \
+    docker-php-ext-enable xdebug
+COPY php.ini /usr/local/etc/php/conf.d/php.ini
+
+#RUN version=$(php -r "echo PHP_MAJOR_VERSION.PHP_MINOR_VERSION;") \
+#    && curl -A "Docker" -o /tmp/blackfire-probe.tar.gz -D - -L -s https://blackfire.io/api/v1/releases/probe/php/linux/amd64/$version \
+#    && tar zxpf /tmp/blackfire-probe.tar.gz -C /tmp \
+#    && mv /tmp/blackfire-*.so $(php -r "echo ini_get('extension_dir');")/blackfire.so \
+#    && printf "extension=blackfire.so\nblackfire.agent_socket=tcp://blackfire:8707\n" > $PHP_INI_DIR/conf.d/blackfire.ini
+
+RUN usermod -u 1000 www-data
+RUN usermod -G staff www-data
